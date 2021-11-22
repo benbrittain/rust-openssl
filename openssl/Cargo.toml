@@ -19,6 +19,8 @@ v111 = []
 
 vendored = ['ffi/vendored']
 bindgen = ['ffi/bindgen']
+boringssl = ["bssl-ffi"]
+default = ["ffi"]
 
 [dependencies]
 bitflags = "1.0"
@@ -28,7 +30,8 @@ libc = "0.2"
 once_cell = "1.5.2"
 
 openssl-macros = { path = "../openssl-macros" }
-ffi = { package = "openssl-sys", version = "0.9.69", path = "../openssl-sys" }
+bssl-ffi = { package = "bssl-sys", version = "0.1.0", path = "../../boringssl/build/rust", optional=true }
+ffi = { package = "openssl-sys", version = "0.9.69", path = "../openssl-sys", optional = true}
 
 [dev-dependencies]
 tempdir = "0.3"

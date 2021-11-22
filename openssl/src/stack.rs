@@ -1,6 +1,6 @@
 use cfg_if::cfg_if;
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
-use libc::c_int;
+use libc::{c_int, size_t};
 use std::borrow::Borrow;
 use std::convert::AsRef;
 use std::fmt;
@@ -12,6 +12,11 @@ use std::ops::{Deref, DerefMut, Index, IndexMut, Range};
 use crate::error::ErrorStack;
 use crate::util::ForeignTypeExt;
 use crate::{cvt, cvt_p};
+
+#[cfg(not(boringssl))]
+type IdxType = c_int;
+#[cfg(boringssl)]
+type IdxType = size_t;
 
 cfg_if! {
     if #[cfg(ossl110)] {
@@ -80,7 +85,7 @@ impl<T: Stackable> iter::IntoIterator for Stack<T> {
     fn into_iter(self) -> IntoIter<T> {
         let it = IntoIter {
             stack: self.0,
-            idxs: 0..self.len() as c_int,
+            idxs: 0..self.len() as IdxType,
         };
         mem::forget(self);
         it
@@ -135,7 +140,7 @@ impl<T: Stackable> DerefMut for Stack<T> {
 
 pub struct IntoIter<T: Stackable> {
     stack: *mut T::StackType,
-    idxs: Range<c_int>,
+    idxs: Range<IdxType>,
 }
 
 impl<T: Stackable> Drop for IntoIter<T> {
@@ -204,13 +209,13 @@ impl<T: Stackable> StackRef<T> {
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
             stack: self,
-            idxs: 0..self.len() as c_int,
+            idxs: 0..self.len() as IdxType,
         }
     }
 
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         IterMut {
-            idxs: 0..self.len() as c_int,
+            idxs: 0..self.len() as IdxType,
             stack: self,
         }
     }
@@ -242,7 +247,7 @@ impl<T: Stackable> StackRef<T> {
     /// Pushes a value onto the top of the stack.
     pub fn push(&mut self, data: T) -> Result<(), ErrorStack> {
         unsafe {
-            cvt(OPENSSL_sk_push(self.as_stack(), data.as_ptr() as *mut _))?;
+            cvt(OPENSSL_sk_push(self.as_stack(), data.as_ptr() as *mut _) as c_int)?;
             mem::forget(data);
             Ok(())
         }
@@ -257,7 +262,7 @@ impl<T: Stackable> StackRef<T> {
     }
 
     unsafe fn _get(&self, idx: usize) -> *mut T::CType {
-        OPENSSL_sk_value(self.as_stack(), idx as c_int) as *mut _
+        OPENSSL_sk_value(self.as_stack(), idx as IdxType) as *mut _
     }
 }
 
@@ -314,7 +319,7 @@ impl<'a, T: Stackable> iter::IntoIterator for &'a mut Stack<T> {
 /// An iterator over the stack's contents.
 pub struct Iter<'a, T: Stackable> {
     stack: &'a StackRef<T>,
-    idxs: Range<c_int>,
+    idxs: Range<IdxType>,
 }
 
 impl<'a, T: Stackable> Iterator for Iter<'a, T> {
@@ -348,7 +353,7 @@ impl<'a, T: Stackable> ExactSizeIterator for Iter<'a, T> {}
 /// A mutable iterator over the stack's contents.
 pub struct IterMut<'a, T: Stackable> {
     stack: &'a mut StackRef<T>,
-    idxs: Range<c_int>,
+    idxs: Range<IdxType>,
 }
 
 impl<'a, T: Stackable> Iterator for IterMut<'a, T> {

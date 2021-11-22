@@ -388,7 +388,7 @@ pub unsafe extern "C" fn raw_remove_session<F>(
 }
 
 cfg_if! {
-    if #[cfg(any(ossl110, libressl280))] {
+    if #[cfg(any(ossl110, libressl280, boringssl))] {
         type DataPtr = *const c_uchar;
     } else {
         type DataPtr = *mut c_uchar;
@@ -486,6 +486,7 @@ where
     (*callback)(ssl, slice) as c_int
 }
 
+#[cfg(not(boringssl))]
 pub extern "C" fn raw_cookie_generate<F>(
     ssl: *mut ffi::SSL,
     cookie: *mut c_uchar,

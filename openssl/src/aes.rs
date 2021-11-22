@@ -55,6 +55,7 @@
 //! assert_eq!(&orig_key[..], &key_to_wrap[..]);
 //! ```
 //!
+use cfg_if::cfg_if;
 use libc::{c_int, c_uint};
 use std::mem::MaybeUninit;
 use std::ptr;
@@ -68,6 +69,16 @@ pub struct KeyError(());
 
 /// The key used to encrypt or decrypt cipher blocks.
 pub struct AesKey(ffi::AES_KEY);
+
+cfg_if! {
+    if #[cfg(boringssl)] {
+        type AesBitType = c_uint;
+        type AesSizeType = usize;
+    } else {
+        type AesBitType = c_int;
+        type AesSizeType = c_uint;
+    }
+}
 
 impl AesKey {
     /// Prepares a key for encryption.
@@ -83,7 +94,7 @@ impl AesKey {
             let mut aes_key = MaybeUninit::uninit();
             let r = ffi::AES_set_encrypt_key(
                 key.as_ptr() as *const _,
-                key.len() as c_int * 8,
+                key.len() as AesBitType * 8,
                 aes_key.as_mut_ptr(),
             );
             if r == 0 {
@@ -107,7 +118,7 @@ impl AesKey {
             let mut aes_key = MaybeUninit::uninit();
             let r = ffi::AES_set_decrypt_key(
                 key.as_ptr() as *const _,
-                key.len() as c_int * 8,
+                key.len() as AesBitType * 8,
                 aes_key.as_mut_ptr(),
             );
 
@@ -138,6 +149,7 @@ impl AesKey {
 ///
 /// Panics if `in_` is not the same length as `out`, if that length is not a multiple of 16, or if
 /// `iv` is not at least 32 bytes.
+#[cfg(not(boringssl))]
 #[corresponds(AES_ige_encrypt)]
 pub fn aes_ige(in_: &[u8], out: &mut [u8], key: &AesKey, iv: &mut [u8], mode: Mode) {
     unsafe {
@@ -189,7 +201,7 @@ pub fn wrap_key(
                 .map_or(ptr::null(), |iv| iv.as_ptr() as *const _),
             out.as_ptr() as *mut _,
             in_.as_ptr() as *const _,
-            in_.len() as c_uint,
+            in_.len() as AesSizeType,
         );
         if written <= 0 {
             Err(KeyError(()))
@@ -228,7 +240,7 @@ pub fn unwrap_key(
                 .map_or(ptr::null(), |iv| iv.as_ptr() as *const _),
             out.as_ptr() as *mut _,
             in_.as_ptr() as *const _,
-            in_.len() as c_uint,
+            in_.len() as AesSizeType,
         );
 
         if written <= 0 {
@@ -248,6 +260,7 @@ mod test {
 
     // From https://www.mgp25.com/AESIGE/
     #[test]
+    #[cfg(not(boringssl))]
     fn ige_vector_1() {
         let raw_key = "000102030405060708090A0B0C0D0E0F";
         let raw_iv = "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F";

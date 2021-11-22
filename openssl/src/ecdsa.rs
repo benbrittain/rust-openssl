@@ -2,7 +2,7 @@
 
 use cfg_if::cfg_if;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::c_int;
+use libc::{c_int, size_t};
 use std::mem;
 use std::ptr;
 
@@ -24,6 +24,11 @@ foreign_type_and_impl_send_sync! {
     pub struct EcdsaSigRef;
 }
 
+#[cfg(boringssl)]
+type LenType = size_t;
+#[cfg(not(boringssl))]
+type LenType = c_int;
+
 impl EcdsaSig {
     /// Computes a digital signature of the hash value `data` using the private EC key eckey.
     #[corresponds(ECDSA_do_sign)]
@@ -35,7 +40,7 @@ impl EcdsaSig {
             assert!(data.len() <= c_int::max_value() as usize);
             let sig = cvt_p(ffi::ECDSA_do_sign(
                 data.as_ptr(),
-                data.len() as c_int,
+                data.len() as LenType,
                 eckey.as_ptr(),
             ))?;
             Ok(EcdsaSig::from_ptr(sig))
@@ -80,7 +85,7 @@ impl EcdsaSigRef {
             assert!(data.len() <= c_int::max_value() as usize);
             cvt_n(ffi::ECDSA_do_verify(
                 data.as_ptr(),
-                data.len() as c_int,
+                data.len() as LenType,
                 self.as_ptr(),
                 eckey.as_ptr(),
             ))
@@ -160,7 +165,7 @@ mod test {
     #[test]
     #[cfg_attr(osslconf = "OPENSSL_NO_EC2M", ignore)]
     fn sign_and_verify() {
-        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME192V1).unwrap();
+        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
         let private_key = EcKey::generate(&group).unwrap();
         let public_key = get_public_key(&group, &private_key).unwrap();
 
@@ -188,7 +193,7 @@ mod test {
     #[test]
     #[cfg_attr(osslconf = "OPENSSL_NO_EC2M", ignore)]
     fn check_private_components() {
-        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME192V1).unwrap();
+        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
         let private_key = EcKey::generate(&group).unwrap();
         let public_key = get_public_key(&group, &private_key).unwrap();
         let data = String::from("hello");
@@ -208,7 +213,7 @@ mod test {
     #[test]
     #[cfg_attr(osslconf = "OPENSSL_NO_EC2M", ignore)]
     fn serialize_deserialize() {
-        let group = EcGroup::from_curve_name(Nid::SECP256K1).unwrap();
+        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
         let private_key = EcKey::generate(&group).unwrap();
         let public_key = get_public_key(&group, &private_key).unwrap();
 

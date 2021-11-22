@@ -25,7 +25,7 @@
 //! ```
 use cfg_if::cfg_if;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::c_int;
+use libc::{c_int, size_t};
 use std::fmt;
 use std::mem;
 use std::ptr;
@@ -36,6 +36,11 @@ use crate::pkey::{HasPrivate, HasPublic, Private, Public};
 use crate::util::ForeignTypeRefExt;
 use crate::{cvt, cvt_n, cvt_p};
 use openssl_macros::corresponds;
+
+#[cfg(boringssl)]
+type BitType = size_t;
+#[cfg(not(boringssl))]
+type BitType = c_int;
 
 /// Type of encryption padding to use.
 ///
@@ -134,7 +139,7 @@ where
 
         unsafe {
             let len = cvt_n(ffi::RSA_private_decrypt(
-                from.len() as c_int,
+                from.len() as BitType,
                 from.as_ptr(),
                 to.as_mut_ptr(),
                 self.as_ptr(),
@@ -162,7 +167,7 @@ where
 
         unsafe {
             let len = cvt_n(ffi::RSA_private_encrypt(
-                from.len() as c_int,
+                from.len() as BitType,
                 from.as_ptr(),
                 to.as_mut_ptr(),
                 self.as_ptr(),
@@ -305,7 +310,7 @@ where
 
         unsafe {
             let len = cvt_n(ffi::RSA_public_decrypt(
-                from.len() as c_int,
+                from.len() as BitType,
                 from.as_ptr(),
                 to.as_mut_ptr(),
                 self.as_ptr(),
@@ -332,7 +337,7 @@ where
 
         unsafe {
             let len = cvt_n(ffi::RSA_public_encrypt(
-                from.len() as c_int,
+                from.len() as BitType,
                 from.as_ptr(),
                 to.as_mut_ptr(),
                 self.as_ptr(),

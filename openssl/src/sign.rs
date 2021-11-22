@@ -700,6 +700,7 @@ mod test {
         assert!(!verifier.verify(&Vec::from_hex(SIGNATURE).unwrap()).unwrap());
     }
 
+    #[cfg(not(boringssl))]
     fn test_hmac(ty: MessageDigest, tests: &[(Vec<u8>, Vec<u8>, Vec<u8>)]) {
         for &(ref key, ref data, ref res) in tests.iter() {
             let pkey = PKey::hmac(key).unwrap();
@@ -710,6 +711,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(boringssl))]
     fn hmac_md5() {
         // test vectors from RFC 2202
         let tests: [(Vec<u8>, Vec<u8>, Vec<u8>); 7] = [
@@ -756,6 +758,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(boringssl))]
     fn hmac_sha1() {
         // test vectors from RFC 2202
         let tests: [(Vec<u8>, Vec<u8>, Vec<u8>); 7] = [

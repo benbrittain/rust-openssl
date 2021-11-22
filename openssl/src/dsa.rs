@@ -7,7 +7,7 @@
 
 use cfg_if::cfg_if;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::c_int;
+use libc::{c_int, c_uint};
 use std::fmt;
 use std::mem;
 use std::ptr;
@@ -178,6 +178,10 @@ where
         }
     }
 }
+#[cfg(boringssl)]
+type BitType = c_uint;
+#[cfg(not(boringssl))]
+type BitType = c_int;
 
 impl Dsa<Private> {
     /// Generate a DSA key pair.
@@ -195,7 +199,7 @@ impl Dsa<Private> {
             let dsa = Dsa::from_ptr(cvt_p(ffi::DSA_new())?);
             cvt(ffi::DSA_generate_parameters_ex(
                 dsa.0,
-                bits as c_int,
+                bits as BitType,
                 ptr::null(),
                 0,
                 ptr::null_mut(),
@@ -397,6 +401,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(boringssl))]
     fn test_signature() {
         const TEST_DATA: &[u8] = &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
         let dsa_ref = Dsa::generate(1024).unwrap();

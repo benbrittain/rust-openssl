@@ -56,9 +56,9 @@ use crate::pkey::{HasPrivate, HasPublic, PKey, PKeyRef};
 use crate::{cvt, cvt_p};
 use cfg_if::cfg_if;
 use foreign_types::{ForeignType, ForeignTypeRef};
+use std::convert::{TryInto, TryFrom};
 use libc::{c_int, c_uchar};
 use openssl_macros::corresponds;
-use std::convert::TryFrom;
 use std::ptr;
 
 cfg_if! {
@@ -182,6 +182,7 @@ impl CipherCtxRef {
     /// Panics if `pub_keys` is not the same size as `encrypted_keys`, the IV buffer is smaller than the cipher's IV
     /// size, or if an IV is provided before the cipher.
     #[corresponds(EVP_SealInit)]
+    #[cfg(not(boringssl))]
     pub fn seal_init<T>(
         &mut self,
         type_: Option<&CipherRef>,
@@ -238,6 +239,7 @@ impl CipherCtxRef {
     /// Panics if the IV buffer is smaller than the cipher's required IV size or if the IV is provided before the
     /// cipher.
     #[corresponds(EVP_OpenInit)]
+    #[cfg(not(boringssl))]
     pub fn open_init<T>(
         &mut self,
         type_: Option<&CipherRef>,
@@ -311,6 +313,7 @@ impl CipherCtxRef {
     ///
     /// [`EVP_CIPHER_CTX_rand_key`]: https://www.openssl.org/docs/manmaster/man3/EVP_CIPHER_CTX_rand_key.html
     #[corresponds(EVP_CIPHER_CTX_rand_key)]
+    #[cfg(not(boringssl))]
     pub fn rand_key(&self, buf: &mut [u8]) -> Result<(), ErrorStack> {
         assert!(buf.len() >= self.key_length());
 
@@ -338,7 +341,7 @@ impl CipherCtxRef {
         let len = c_int::try_from(len).unwrap();
 
         unsafe {
-            cvt(ffi::EVP_CIPHER_CTX_set_key_length(self.as_ptr(), len))?;
+            cvt(ffi::EVP_CIPHER_CTX_set_key_length(self.as_ptr(), len.try_into().unwrap()))?;
         }
 
         Ok(())
@@ -559,7 +562,7 @@ impl CipherCtxRef {
 
         let mut outl = 0;
         unsafe {
-            cvt(ffi::EVP_CipherFinal(
+            cvt(ffi::EVP_CipherFinal_ex(
                 self.as_ptr(),
                 output.as_mut_ptr(),
                 &mut outl,
@@ -587,6 +590,7 @@ mod test {
     use std::slice;
 
     #[test]
+    #[cfg(not(boringssl))]
     fn seal_open() {
         let private_pem = include_bytes!("../test/rsa.pem");
         let public_pem = include_bytes!("../test/rsa.pem.pub");
