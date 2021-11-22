@@ -16,14 +16,20 @@
 //! }
 //! ```
 use cfg_if::cfg_if;
-use libc::{c_char, c_int, c_ulong};
+use libc::{c_char, c_int, c_uint, c_ulong};
 use std::borrow::Cow;
+use std::convert::TryInto;
 use std::error;
 use std::ffi::CStr;
 use std::fmt;
 use std::io;
 use std::ptr;
 use std::str;
+
+#[cfg(not(boringssl))]
+type ErrType = c_ulong;
+#[cfg(boringssl)]
+type ErrType = c_uint;
 
 /// Collection of [`Error`]s from OpenSSL.
 ///
@@ -91,7 +97,7 @@ impl From<ErrorStack> for fmt::Error {
 /// An error reported from OpenSSL.
 #[derive(Clone)]
 pub struct Error {
-    code: c_ulong,
+    code: ErrType,
     file: *const c_char,
     line: c_int,
     func: *const c_char,
@@ -120,11 +126,14 @@ impl Error {
                     let data = if flags & ffi::ERR_TXT_STRING != 0 {
                         let bytes = CStr::from_ptr(data as *const _).to_bytes();
                         let data = str::from_utf8(bytes).unwrap();
+                        #[cfg(not(boringssl))]
                         let data = if flags & ffi::ERR_TXT_MALLOCED != 0 {
                             Cow::Owned(data.to_string())
                         } else {
                             Cow::Borrowed(data)
                         };
+                        #[cfg(boringssl)]
+                        let data = Cow::Borrowed(data);
                         Some(data)
                     } else {
                         None
@@ -191,13 +200,13 @@ impl Error {
                 ffi::ERR_GET_FUNC(self.code),
                 ffi::ERR_GET_REASON(self.code),
                 self.file,
-                self.line,
+                self.line.try_into().unwrap(),
             );
         }
     }
 
     /// Returns the raw OpenSSL error code for this error.
-    pub fn code(&self) -> c_ulong {
+    pub fn code(&self) -> ErrType {
         self.code
     }
 
@@ -317,7 +326,7 @@ cfg_if! {
             func: *mut *const c_char,
             data: *mut *const c_char,
             flags: *mut c_int,
-        ) -> c_ulong {
+        ) -> ErrType {
             let code = ffi::ERR_get_error_line_data(file, line, data, flags);
             *func = ffi::ERR_func_error_string(code);
             code

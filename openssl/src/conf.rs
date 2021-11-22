@@ -4,8 +4,10 @@ use crate::cvt_p;
 use crate::error::ErrorStack;
 use openssl_macros::corresponds;
 
+#[cfg(not(boringssl))]
 pub struct ConfMethod(*mut ffi::CONF_METHOD);
 
+#[cfg(not(boringssl))]
 impl ConfMethod {
     /// Retrieve handle to the default OpenSSL configuration file processing function.
     #[corresponds(NCONF_default)]
@@ -41,6 +43,7 @@ foreign_type_and_impl_send_sync! {
     pub struct ConfRef;
 }
 
+#[cfg(not(boringssl))]
 impl Conf {
     /// Create a configuration parser.
     ///

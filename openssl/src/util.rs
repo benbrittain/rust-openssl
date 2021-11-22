@@ -1,6 +1,9 @@
 use crate::error::ErrorStack;
 use foreign_types::{ForeignType, ForeignTypeRef};
+use std::convert::TryFrom;
 use libc::{c_char, c_int, c_void};
+use crate::{cvt, cvt_p};
+use cfg_if::cfg_if;
 use std::any::Any;
 use std::panic::{self, AssertUnwindSafe};
 use std::slice;
@@ -91,3 +94,30 @@ pub trait ForeignTypeRefExt: ForeignTypeRef {
     }
 }
 impl<FT: ForeignTypeRef> ForeignTypeRefExt for FT {}
+
+#[track_caller]
+#[inline]
+pub fn crypto_malloc(len: usize) -> Result<*mut c_void, ErrorStack> {
+    // 1.0.2 uses c_int but 1.1.0+ uses size_t
+    let len = TryFrom::try_from(len).unwrap();
+
+    unsafe {
+        cvt_p(ffi::CRYPTO_malloc(
+            len,
+            concat!(file!(), "\0").as_ptr() as *const _,
+            line!() as _,
+        ))
+    }
+}
+
+#[track_caller]
+#[inline]
+pub unsafe fn crypto_free(ptr: *mut c_void) {
+    cfg_if! {
+        if #[cfg(any(ossl110, boringssl))] {
+            ffi::CRYPTO_free(ptr, concat!(file!(), "\0").as_ptr() as *const _, line!() as _);
+        } else {
+            ffi::CRYPTO_free(ptr);
+        }
+    }
+}

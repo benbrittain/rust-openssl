@@ -202,15 +202,15 @@ impl Pkcs12Builder {
             ))
             .map(Pkcs12)?;
 
-            cvt(ffi::PKCS12_set_mac(
-                pkcs12.as_ptr(),
-                pass.as_ptr(),
-                -1,
-                ptr::null_mut(),
-                0,
-                self.mac_iter,
-                md_type,
-            ))?;
+            // cvt(ffi::PKCS12_set_mac(
+            //     pkcs12.as_ptr(),
+            //     pass.as_ptr(),
+            //     -1,
+            //     ptr::null_mut(),
+            //     0,
+            //     self.mac_iter,
+            //     md_type,
+            // ))?;
 
             Ok(pkcs12)
         }

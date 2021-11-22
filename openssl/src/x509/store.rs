@@ -143,6 +143,7 @@ impl X509Lookup<HashDir> {
     }
 }
 
+#[cfg(not(boringssl))]
 impl X509LookupRef<HashDir> {
     /// Specifies a directory from which certificates and CRLs will be loaded
     /// on-demand. Must be used with `X509Lookup::hash_dir`.
@@ -189,7 +190,7 @@ impl X509StoreRef {
 }
 
 cfg_if! {
-    if #[cfg(any(ossl110, libressl270))] {
+    if #[cfg(any(boringssl, ossl110, libressl270))] {
         use ffi::X509_STORE_get0_objects;
     } else {
         #[allow(bad_style)]

@@ -43,6 +43,8 @@ cfg_if! {
             BN_get_rfc3526_prime_2048, BN_get_rfc3526_prime_3072, BN_get_rfc3526_prime_4096,
             BN_get_rfc3526_prime_6144, BN_get_rfc3526_prime_8192, BN_is_negative,
         };
+    } else if #[cfg(boringssl)] {
+        use ffi::BN_is_negative;
     } else {
         use ffi::{
             get_rfc2409_prime_1024 as BN_get_rfc2409_prime_1024,
@@ -946,6 +948,7 @@ impl BigNum {
     ///
     /// [`RFC 2409`]: https://tools.ietf.org/html/rfc2409#page-21
     #[corresponds(BN_get_rfc2409_prime_768)]
+    #[cfg(not(boringssl))]
     pub fn get_rfc2409_prime_768() -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -959,6 +962,7 @@ impl BigNum {
     ///
     /// [`RFC 2409`]: https://tools.ietf.org/html/rfc2409#page-21
     #[corresponds(BN_get_rfc2409_prime_1024)]
+    #[cfg(not(boringssl))]
     pub fn get_rfc2409_prime_1024() -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -972,6 +976,7 @@ impl BigNum {
     ///
     /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-3
     #[corresponds(BN_get_rfc3526_prime_1536)]
+    #[cfg(not(boringssl))]
     pub fn get_rfc3526_prime_1536() -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -985,6 +990,7 @@ impl BigNum {
     ///
     /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-3
     #[corresponds(BN_get_rfc3526_prime_2048)]
+    #[cfg(not(boringssl))]
     pub fn get_rfc3526_prime_2048() -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -998,6 +1004,7 @@ impl BigNum {
     ///
     /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-4
     #[corresponds(BN_get_rfc3526_prime_3072)]
+    #[cfg(not(boringssl))]
     pub fn get_rfc3526_prime_3072() -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -1011,6 +1018,7 @@ impl BigNum {
     ///
     /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-4
     #[corresponds(BN_get_rfc3526_prime_4096)]
+    #[cfg(not(boringssl))]
     pub fn get_rfc3526_prime_4096() -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -1024,6 +1032,7 @@ impl BigNum {
     ///
     /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-6
     #[corresponds(BN_get_rfc3526_prime_6114)]
+    #[cfg(not(boringssl))]
     pub fn get_rfc3526_prime_6144() -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -1037,6 +1046,7 @@ impl BigNum {
     ///
     /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-6
     #[corresponds(BN_get_rfc3526_prime_8192)]
+    #[cfg(not(boringssl))]
     pub fn get_rfc3526_prime_8192() -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -1061,12 +1071,12 @@ impl BigNum {
         unsafe {
             ffi::init();
             assert!(n.len() <= c_int::max_value() as usize);
-            cvt_p(ffi::BN_bin2bn(
-                n.as_ptr(),
-                n.len() as c_int,
-                ptr::null_mut(),
-            ))
-            .map(|p| BigNum::from_ptr(p))
+            #[cfg(boringssl)]
+            let len = n.len();
+            #[cfg(not(boringssl))]
+            let len = n.len() as c_int;
+
+            cvt_p(ffi::BN_bin2bn(n.as_ptr(), len, ptr::null_mut())).map(|p| BigNum::from_ptr(p))
         }
     }
 }

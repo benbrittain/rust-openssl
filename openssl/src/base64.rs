@@ -1,8 +1,13 @@
 //! Base64 encoding support.
 use crate::cvt_n;
 use crate::error::ErrorStack;
-use libc::c_int;
 use openssl_macros::corresponds;
+use libc::{c_int, size_t};
+
+#[cfg(not(boringssl))]
+type LenType = c_int;
+#[cfg(boringssl)]
+type LenType = size_t;
 
 /// Encodes a slice of bytes to a base64 string.
 ///
@@ -12,7 +17,7 @@ use openssl_macros::corresponds;
 #[corresponds(EVP_EncodeBlock)]
 pub fn encode_block(src: &[u8]) -> String {
     assert!(src.len() <= c_int::max_value() as usize);
-    let src_len = src.len() as c_int;
+    let src_len = src.len() as LenType;
 
     let len = encoded_len(src_len).unwrap();
     let mut out = Vec::with_capacity(len as usize);
@@ -43,7 +48,7 @@ pub fn decode_block(src: &str) -> Result<Vec<u8>, ErrorStack> {
     }
 
     assert!(src.len() <= c_int::max_value() as usize);
-    let src_len = src.len() as c_int;
+    let src_len = src.len() as LenType;
 
     let len = decoded_len(src_len).unwrap();
     let mut out = Vec::with_capacity(len as usize);
@@ -72,7 +77,7 @@ pub fn decode_block(src: &str) -> Result<Vec<u8>, ErrorStack> {
     Ok(out)
 }
 
-fn encoded_len(src_len: c_int) -> Option<c_int> {
+fn encoded_len(src_len: LenType) -> Option<LenType> {
     let mut len = (src_len / 3).checked_mul(4)?;
 
     if src_len % 3 != 0 {
@@ -84,7 +89,7 @@ fn encoded_len(src_len: c_int) -> Option<c_int> {
     Some(len)
 }
 
-fn decoded_len(src_len: c_int) -> Option<c_int> {
+fn decoded_len(src_len: LenType) -> Option<LenType> {
     let mut len = (src_len / 4).checked_mul(3)?;
 
     if src_len % 4 != 0 {
